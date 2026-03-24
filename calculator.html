@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: #2a2a35;
+    --accent: #00d4ff;
+    --accent2: #7b2fff;
+    --red: #ff3b5c;
+    --text: #e8e8f0;
+    --text-dim: #6b6b80;
+    --eq: #00d4ff;
+    --num: #1e1e24;
+    --op: #141419;
+    --glow: 0 0 20px rgba(0, 212, 255, 0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Rajdhani', sans-serif;
+    overflow: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 80%, rgba(123, 47, 255, 0.08) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 50% at 80% 20%, rgba(0, 212, 255, 0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .calc-wrapper {
+    position: relative;
+    width: 340px;
+  }
+
+  /* Decorative corner marks */
+  .corner {
+    position: absolute;
+    width: 14px; height: 14px;
+    border-color: var(--accent);
+    border-style: solid;
+    opacity: 0.5;
+    z-index: 10;
+  }
+  .corner.tl { top: -6px; left: -6px; border-width: 2px 0 0 2px; }
+  .corner.tr { top: -6px; right: -6px; border-width: 2px 2px 0 0; }
+  .corner.bl { bottom: -6px; left: -6px; border-width: 0 0 2px 2px; }
+  .corner.br { bottom: -6px; right: -6px; border-width: 0 2px 2px 0; }
+
+  .calculator {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 0 0 1px rgba(0,212,255,0.05), 0 30px 80px rgba(0,0,0,0.7);
+  }
+
+  /* Display */
+  .display-area {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    min-height: 86px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .display-area::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.4;
+  }
+
+  .display-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .display-history {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: right;
+    min-height: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .display-history.visible { opacity: 1; }
+
+  .display-input {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 32px;
+    color: var(--text);
+    text-align: right;
+    background: none;
+    border: none;
+    outline: none;
+    width: 100%;
+    caret-color: var(--accent);
+    letter-spacing: -0.01em;
+  }
+
+  .display-input.result-flash {
+    animation: resultPop 0.25s ease;
+  }
+
+  @keyframes resultPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.04); color: var(--accent); }
+    100% { transform: scale(1); }
+  }
+
+  /* Mode toggle */
+  .mode-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+
+  .mode-btn {
+    flex: 1;
+    padding: 6px;
+    background: var(--op);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-dim);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mode-btn.active {
+    background: rgba(0, 212, 255, 0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: var(--glow);
+  }
+
+  /* Grid */
+  .btn-grid {
+    display: grid;
+    gap: 6px;
+  }
+
+  .btn-grid.basic { grid-template-columns: repeat(4, 1fr); }
+  .btn-grid.scientific { grid-template-columns: repeat(4, 1fr); }
+
+  /* Buttons */
+  .btn {
+    height: 56px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--num);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.12s;
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.02em;
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0);
+    transition: background 0.1s;
+  }
+
+  .btn:hover::before { background: rgba(255,255,255,0.05); }
+  .btn:active { transform: scale(0.96); }
+
+  .btn.op {
+    background: var(--op);
+    color: var(--accent);
+    border-color: rgba(0,212,255,0.15);
+    font-size: 18px;
+  }
+
+  .btn.fn {
+    background: var(--op);
+    color: #9d8fff;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    border-color: rgba(123,47,255,0.2);
+    height: 48px;
+  }
+
+  .btn.clear {
+    background: rgba(255, 59, 92, 0.1);
+    color: var(--red);
+    border-color: rgba(255,59,92,0.25);
+    font-size: 13px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+  .btn.clear:hover::before { background: rgba(255,59,92,0.08); }
+
+  .btn.back {
+    background: var(--op);
+    color: var(--text-dim);
+    font-size: 18px;
+  }
+
+  .btn.equals {
+    background: rgba(0,212,255,0.12);
+    color: var(--eq);
+    border-color: rgba(0,212,255,0.3);
+    font-size: 22px;
+    box-shadow: inset 0 1px 0 rgba(0,212,255,0.1);
+  }
+  .btn.equals:hover { box-shadow: var(--glow), inset 0 1px 0 rgba(0,212,255,0.1); }
+
+  /* Ripple */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    width: 60px; height: 60px;
+    background: rgba(0,212,255,0.18);
+    transform: scale(0);
+    animation: rippleAnim 0.4s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes rippleAnim {
+    to { transform: scale(3); opacity: 0; }
+  }
+
+  /* Error shake */
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+  .display-input.error { animation: shake 0.35s ease; color: var(--red); }
+
+  /* Scan line effect */
+  .display-area::before {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, rgba(0,212,255,0.02), transparent);
+    animation: scan 4s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes scan {
+    from { top: -40px; }
+    to { top: 100%; }
+  }
+
+  /* Fade-in for grid */
+  .btn-grid {
+    animation: fadeIn 0.18s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="calc-wrapper">
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <div class="calculator">
+    <div class="display-area">
+      <div class="display-label">CALC · V2</div>
+      <div class="display-history" id="history"></div>
+      <input class="display-input" id="display" type="text" value="0" readonly />
+    </div>
+
+    <div class="mode-bar">
+      <button class="mode-btn active" id="btn-basic" onclick="setMode('basic')">BASIC</button>
+      <button class="mode-btn" id="btn-sci" onclick="setMode('scientific')">SCIENTIFIC</button>
+    </div>
+
+    <div class="btn-grid basic" id="btn-grid"></div>
+  </div>
+</div>
+
+<script>
+let mode = 'basic';
+let expression = '';
+let justCalculated = false;
+
+const display = document.getElementById('display');
+const history = document.getElementById('history');
+
+const basicButtons = [
+  { label: 'C', cls: 'clear' }, { label: '(', cls: 'op' }, { label: ')', cls: 'op' }, { label: '⌫', cls: 'back' },
+  { label: '7' }, { label: '8' }, { label: '9' }, { label: '÷', cls: 'op', val: '/' },
+  { label: '4' }, { label: '5' }, { label: '6' }, { label: '×', cls: 'op', val: '*' },
+  { label: '1' }, { label: '2' }, { label: '3' }, { label: '−', cls: 'op', val: '-' },
+  { label: '0' }, { label: '.' }, { label: '%', cls: 'op' }, { label: '+', cls: 'op' },
+  { label: '=', cls: 'equals', span: 4 }
+];
+
+const sciButtons = [
+  { label: 'C', cls: 'clear' }, { label: 'sin', cls: 'fn' }, { label: 'cos', cls: 'fn' }, { label: 'tan', cls: 'fn' },
+  { label: 'log', cls: 'fn' }, { label: '√', cls: 'fn', val: 'sqrt' }, { label: 'x²', cls: 'fn', val: 'sq' }, { label: 'π', cls: 'fn', val: 'pi' },
+  { label: '7' }, { label: '8' }, { label: '9' }, { label: '÷', cls: 'op', val: '/' },
+  { label: '4' }, { label: '5' }, { label: '6' }, { label: '×', cls: 'op', val: '*' },
+  { label: '1' }, { label: '2' }, { label: '3' }, { label: '−', cls: 'op', val: '-' },
+  { label: '0' }, { label: '.' }, { label: '⌫', cls: 'back' }, { label: '+', cls: 'op' },
+  { label: '=', cls: 'equals', span: 4 }
+];
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-basic').classList.toggle('active', m === 'basic');
+  document.getElementById('btn-sci').classList.toggle('active', m === 'scientific');
+  const grid = document.getElementById('btn-grid');
+  grid.className = 'btn-grid ' + m;
+  renderButtons();
+}
+
+function renderButtons() {
+  const grid = document.getElementById('btn-grid');
+  grid.innerHTML = '';
+  const buttons = mode === 'basic' ? basicButtons : sciButtons;
+
+  buttons.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'btn ' + (b.cls || '');
+    btn.textContent = b.label;
+    if (b.span) btn.style.gridColumn = `span ${b.span}`;
+
+    btn.addEventListener('click', (e) => {
+      addRipple(btn, e);
+      handleInput(b.val || b.label);
+    });
+
+    grid.appendChild(btn);
+  });
+}
+
+function addRipple(btn, e) {
+  const r = document.createElement('span');
+  r.className = 'ripple';
+  const rect = btn.getBoundingClientRect();
+  r.style.left = (e.clientX - rect.left - 30) + 'px';
+  r.style.top = (e.clientY - rect.top - 30) + 'px';
+  btn.appendChild(r);
+  setTimeout(() => r.remove(), 400);
+}
+
+function handleInput(val) {
+  const ops = ['+', '-', '*', '/', '%', '(', ')'];
+
+  if (val === 'C') {
+    expression = '';
+    setDisplay('0');
+    history.textContent = '';
+    history.classList.remove('visible');
+    justCalculated = false;
+    return;
+  }
+
+  if (val === '⌫') {
+    if (justCalculated) { expression = ''; setDisplay('0'); justCalculated = false; return; }
+    expression = expression.slice(0, -1);
+    setDisplay(expression || '0');
+    return;
+  }
+
+  if (val === '=') {
+    calculate();
+    return;
+  }
+
+  // Scientific functions
+  if (['sin','cos','tan','log','sqrt','sq','pi'].includes(val)) {
+    sciCalc(val);
+    return;
+  }
+
+  if (justCalculated && !ops.includes(val)) {
+    expression = '';
+    justCalculated = false;
+  }
+
+  if (val === '%' && expression) {
+    try {
+      const n = parseFloat(expression);
+      expression = String(n / 100);
+      setDisplay(expression);
+    } catch {}
+    return;
+  }
+
+  expression += val;
+  setDisplay(expression);
+  justCalculated = false;
+}
+
+function sciCalc(fn) {
+  try {
+    const val = parseFloat(expression) || 0;
+    let res;
+    if (fn === 'sin') res = Math.sin(val * Math.PI / 180);
+    else if (fn === 'cos') res = Math.cos(val * Math.PI / 180);
+    else if (fn === 'tan') res = Math.tan(val * Math.PI / 180);
+    else if (fn === 'log') res = Math.log10(val);
+    else if (fn === 'sqrt') res = Math.sqrt(val);
+    else if (fn === 'sq') res = val * val;
+    else if (fn === 'pi') res = Math.PI;
+
+    history.textContent = expression ? `${fn}(${val})` : 'π';
+    history.classList.add('visible');
+    res = round(res);
+    expression = String(res);
+    setDisplay(expression, true);
+    justCalculated = true;
+  } catch {
+    showError();
+  }
+}
+
+function calculate() {
+  if (!expression) return;
+  try {
+    const histStr = expression;
+    // Safe eval via Function
+    const result = Function('"use strict"; return (' + expression + ')')();
+    if (!isFinite(result)) throw new Error();
+    history.textContent = histStr + ' =';
+    history.classList.add('visible');
+    expression = String(round(result));
+    setDisplay(expression, true);
+    justCalculated = true;
+  } catch {
+    showError();
+  }
+}
+
+function round(n) {
+  return Math.round(n * 1e10) / 1e10;
+}
+
+function setDisplay(val, flash = false) {
+  display.value = val.length > 16 ? val.slice(0, 16) : val;
+  if (flash) {
+    display.classList.remove('result-flash');
+    void display.offsetWidth;
+    display.classList.add('result-flash');
+  }
+}
+
+function showError() {
+  display.classList.remove('error');
+  void display.offsetWidth;
+  display.classList.add('error');
+  display.value = 'ERROR';
+  setTimeout(() => {
+    display.classList.remove('error');
+    expression = '';
+    setDisplay('0');
+  }, 900);
+}
+
+// Keyboard support
+document.addEventListener('keydown', (e) => {
+  const key = e.key;
+  if ('0123456789'.includes(key)) handleInput(key);
+  else if (key === '+') handleInput('+');
+  else if (key === '-') handleInput('-');
+  else if (key === '*') handleInput('*');
+  else if (key === '/') { e.preventDefault(); handleInput('/'); }
+  else if (key === '.') handleInput('.');
+  else if (key === '(') handleInput('(');
+  else if (key === ')') handleInput(')');
+  else if (key === '%') handleInput('%');
+  else if (key === 'Enter' || key === '=') calculate();
+  else if (key === 'Backspace') handleInput('⌫');
+  else if (key === 'Escape') handleInput('C');
+});
+
+renderButtons();
+</script>
+</body>
+</html>
